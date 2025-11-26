@@ -62,11 +62,12 @@ if __name__ == "__main__":
     count = 0
     # Build set of already scraped book ids
     scraped = set()
-    with open('scraped.txt', 'w', encoding='utf-8') as f:
+    try:
+        with open('scraped.txt', 'r', encoding='utf-8') as f:
+            for line in f:
+                scraped.add(line.strip())
+    except FileNotFoundError:
         pass
-    with open('scraped.txt', 'r', encoding='utf-8') as f:
-        for line in f:
-            scraped.add(line.strip())
     # Start scraping loop
     while url is not None:
         url = clean_url(url)
