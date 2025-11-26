@@ -47,8 +47,11 @@ def scrape(page, url, scraped):
         if 'ublished' in publishing_details:
             publishing_date = publishing_details.split('ublished')[1].strip()
     genres_section = soup.select_one('.BookPageMetadataSection__genres')
-    genres = [genre.get_text(strip=True) for genre in genres_section.select('.BookPageMetadataSection__genreButton')]
-    genres_str = '; '.join(genres)
+    if genres_section is not None:
+        genres = [genre.get_text(strip=True) for genre in genres_section.select('.BookPageMetadataSection__genreButton')]
+        genres_str = '; '.join(genres)
+    else:
+        genres_str = 'Unknown'
 
     related_section = soup.select_one('.BookPage__relatedTopContent')
     related_books = [next.get('href') for next in related_section.select('a')]
