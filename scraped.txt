@@ -1,5 +1,4 @@
-117833.The_Master_and_Margarita
-7144.Crime_and_Punishment
+10959.Sophie_s_World
 49552.The_Stranger
 485894.The_Metamorphosis
 1772910.White_Nights
@@ -9,3 +8,4 @@
 51985.Existentialism_is_a_Humanism
 24965.Fear_and_Trembling
 80449.On_the_Genealogy_of_Morals
+18288.Critique_of_Pure_Reason
