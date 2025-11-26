@@ -23,7 +23,7 @@ def scrape(page, url, scraped):
     title = title_section.select_one('.Text__title1').get_text(strip=True)
     series = title_section.select_one('.Text__title3')
     if series is not None:
-        series = series.get_text(strip=True).split('#')[0]
+        series = series.get_text(strip=True).split('#')[0].strip()
     else:
         series = 'None'
     contributors = soup.select_one('.ContributorLinksList').select('.ContributorLink__name')
@@ -38,7 +38,7 @@ def scrape(page, url, scraped):
     description = soup.select_one('.BookPageMetadataSection__description').get_text(strip=True)
     featured_details = soup.select_one('.FeaturedDetails').select('p')
     number_of_pages = featured_details[0].get_text(strip=True).split(' ')[0]
-    publishing_date = featured_details[1].get_text(strip=True).split('published')[1].strip()
+    publishing_date = featured_details[1].get_text(strip=True).split('ublished')[1].strip()
     genres_section = soup.select_one('.BookPageMetadataSection__genres')
     genres = [genre.get_text(strip=True) for genre in genres_section.select('.BookPageMetadataSection__genreButton')]
     genres_str = '; '.join(genres)
