@@ -9,11 +9,15 @@ from selenium.webdriver.common.by import By
 
 from time import sleep
 
-starting_point = 'https://www.goodreads.com/book/show/10959.Sophie_s_World'
+starting_point = 'https://www.goodreads.com/book/show/157993.The_Little_Prince'
 harry_potter = 'https://www.goodreads.com/book/show/42844155-harry-potter-and-the-sorcerer-s-stone'
+count = 0
 
 def scrape(page, url, scraped):
     ''' Extract book data from page'''
+    global count
+    print(f'{count} {url}')
+    count += 1
     soup = BeautifulSoup(page, 'html.parser')
     title_section = soup.select_one('.BookPageTitleSection')
     title = title_section.select_one('.Text__title1').get_text(strip=True)
@@ -24,7 +28,21 @@ def scrape(page, url, scraped):
         series = 'None'
     contributors = soup.select_one('.ContributorLinksList').select('.ContributorLink__name')
     contributors_list = [contributor.get_text(strip=True) for contributor in contributors]
-    contributors_str = '; '.join(contributors_list)
+    contributors_str = '; '.join(contributors_list) 
+    rating_section = soup.select_one('.RatingStatistics')
+    average_rating = rating_section.select_one('.RatingStatistics__rating').get_text(strip=True)
+    rating_statistics_meta = rating_section.select_one('.RatingStatistics__meta').get_text(strip=True)\
+        .replace('ratings', ' ').replace('reviews', '').replace('\xa0', '').split(' ')
+    number_of_ratings = rating_statistics_meta[0]
+    number_of_reviews = rating_statistics_meta[1]
+    description = soup.select_one('.BookPageMetadataSection__description').get_text(strip=True)
+    featured_details = soup.select_one('.FeaturedDetails').select('p')
+    number_of_pages = featured_details[0].get_text(strip=True).split(' ')[0]
+    publishing_date = featured_details[1].get_text(strip=True).split('published')[1].strip()
+    genres_section = soup.select_one('.BookPageMetadataSection__genres')
+    genres = [genre.get_text(strip=True) for genre in genres_section.select('.BookPageMetadataSection__genreButton')]
+    genres_str = '; '.join(genres)
+
     related_section = soup.select_one('.BookPage__relatedTopContent')
     related_books = [next.get('href') for next in related_section.select('a')]
     for next in related_books:
@@ -33,7 +51,7 @@ def scrape(page, url, scraped):
             break
         else:
             next = None
-    csv_line = f'"{title}","{series}","{contributors_str}","{url}"\n'
+    csv_line = f'"{title}","{series}","{contributors_str}","{average_rating}","{number_of_ratings}","{number_of_reviews}","{description}","{number_of_pages}","{publishing_date}","{genres_str}","{url}"\n'
     return csv_line, next
 
 def scroll(driver, url):
@@ -59,7 +77,6 @@ if __name__ == "__main__":
     args = parser.parse_args()
     url = args.url
     driver = webdriver.Chrome()
-    count = 0
     # Build set of already scraped book ids
     scraped = set()
     try:
@@ -81,7 +98,4 @@ if __name__ == "__main__":
             f.write(id(url) + '\n')
         scraped.add(id(url))
         url = next
-        if count == 10:
-            break
-        count += 1
     driver.quit()
