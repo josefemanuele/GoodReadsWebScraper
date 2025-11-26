@@ -59,7 +59,6 @@ def scrape(page, url, scraped):
     
     related_soup = soup.select_one('.BookPage__relatedTopContent').select('.BookCard__clickCardTarget')
     related_books = [next.get('href') for next in related_soup]
-    print(related_books, type(related_books))
     next = None
     for next in related_books:
         next = clean_url(next)
@@ -113,6 +112,7 @@ if __name__ == "__main__":
         scraped.add(id(url))
         url = next
     print(f'Next: {url}')
+    print(f'Scraped {count} new books.')
     print('Scraping complete. No more new books found.')
     print('Consider starting again from a different book URL to explore more.')
     driver.quit()
