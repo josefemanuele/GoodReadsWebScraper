@@ -8,4 +8,4 @@ The Python script extracts information such as Title, Serie, Authors and so on, 
 Launch the script as: ``` python main.py --url [starting_point url] ```
 
 The script will visit the provided page, extract and store the information, and continue with the first book in the 
-"Related books" section which has not visited already.
+"Suggested books" section which has not visited already.
