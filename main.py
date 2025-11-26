@@ -1,4 +1,6 @@
-import requests
+''' Scrape book data from Goodreads starting from a given book URL.
+    Extract title, series, contributors, and related book links.
+    Save data to CSV and track scraped books to avoid duplicates.'''
 import argparse
 from bs4 import BeautifulSoup
 from selenium import webdriver
@@ -7,10 +9,11 @@ from selenium.webdriver.common.by import By
 
 from time import sleep
 
-starting_point = 'https://www.goodreads.com/book/show/117833.The_Master_and_Margarita'
+starting_point = 'https://www.goodreads.com/book/show/10959.Sophie_s_World'
 harry_potter = 'https://www.goodreads.com/book/show/42844155-harry-potter-and-the-sorcerer-s-stone'
 
 def scrape(page, url, scraped):
+    ''' Extract book data from page'''
     soup = BeautifulSoup(page, 'html.parser')
     title_section = soup.select_one('.BookPageTitleSection')
     title = title_section.select_one('.Text__title1').get_text(strip=True)
@@ -43,9 +46,11 @@ def scroll(driver, url):
     return page
 
 def clean_url(url):
+    ''' Get rid of query parameters '''
     return url.split('?')[0]
 
 def id(url):
+    ''' Get unique id from url '''
     return url.split('/')[-1]
 
 if __name__ == "__main__":
