@@ -16,9 +16,13 @@ count = 0
 def scrape(page, url, scraped):
     ''' Extract book data from page'''
     global count
+    # Some simple logging
     print(f'{count} {url}')
     count += 1
     soup = BeautifulSoup(page, 'html.parser')
+    # For debugging, save the page locally
+    with open('debug.html', 'w', encoding='utf-8') as f:
+        f.write(soup.prettify())
     title_section = soup.select_one('.BookPageTitleSection')
     title = title_section.select_one('.Text__title1').get_text(strip=True)
     series = title_section.select_one('.Text__title3')
@@ -52,15 +56,15 @@ def scrape(page, url, scraped):
         genres_str = '; '.join(genres)
     else:
         genres_str = 'Unknown'
-
-    related_section = soup.select_one('.BookPage__relatedTopContent')
-    related_books = [next.get('href') for next in related_section.select('a')]
+    
+    related_soup = soup.select_one('.BookPage__relatedTopContent').select('.BookCard__clickCardTarget')
+    related_books = [next.get('href') for next in related_soup]
+    print(related_books, type(related_books))
+    next = None
     for next in related_books:
         next = clean_url(next)
         if id(next) not in scraped:
             break
-        else:
-            next = None
     csv_line = f'"{title}","{series}","{contributors_str}","{average_rating}","{number_of_ratings}","{number_of_reviews}","{description}","{number_of_pages}","{publishing_date}","{genres_str}","{url}"\n'
     return csv_line, next
 
@@ -69,7 +73,7 @@ def scroll(driver, url):
     driver.get(url)
     related_element = driver.find_element(By.CLASS_NAME, 'BookPage__relatedTopContent')
     ActionChains(driver).scroll_to_element(related_element).perform()
-    sleep(1)  # wait for content to load
+    sleep(1)  # Wait for content to load
     page = driver.page_source
     return page
 
@@ -108,4 +112,7 @@ if __name__ == "__main__":
             f.write(id(url) + '\n')
         scraped.add(id(url))
         url = next
+    print(f'Next: {url}')
+    print('Scraping complete. No more new books found.')
+    print('Consider starting again from a different book URL to explore more.')
     driver.quit()
