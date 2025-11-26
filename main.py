@@ -37,8 +37,15 @@ def scrape(page, url, scraped):
     number_of_reviews = rating_statistics_meta[1]
     description = soup.select_one('.BookPageMetadataSection__description').get_text(strip=True)
     featured_details = soup.select_one('.FeaturedDetails').select('p')
-    number_of_pages = featured_details[0].get_text(strip=True).split(' ')[0]
-    publishing_date = featured_details[1].get_text(strip=True).split('ublished')[1].strip()
+    number_of_pages = 'Unknown'
+    publishing_date = 'Unknown'
+    if len(featured_details) >= 2:
+        pages_details = featured_details[0].get_text(strip=True)
+        if 'pages' in pages_details:
+            number_of_pages = pages_details.split('pages')[0].strip()
+        publishing_details = featured_details[1].get_text(strip=True)
+        if 'ublished' in publishing_details:
+            publishing_date = publishing_details.split('ublished')[1].strip()
     genres_section = soup.select_one('.BookPageMetadataSection__genres')
     genres = [genre.get_text(strip=True) for genre in genres_section.select('.BookPageMetadataSection__genreButton')]
     genres_str = '; '.join(genres)
