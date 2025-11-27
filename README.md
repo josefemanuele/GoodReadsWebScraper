@@ -12,7 +12,7 @@ The script will visit the provided page, extract and store the information, and 
 
 To test the script, just execute ``` python main.py ```. It will start the scraping from a default book url.
 
-## Data
+## Data:
 The collected data is stored in the data.csv file. The format of the csv is:
 Title, Series, Authors, Average rating, Number of ratings, Number of reviews, Description, Number of pages, Publishing date, Genres, Url.
 
