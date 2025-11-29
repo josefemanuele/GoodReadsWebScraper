@@ -85,7 +85,7 @@ def scrape(page, url, scraped, crawling):
             if 'Published' in detail_text:
                 publishing_date = detail_text.split('Published')[1].split('by')[0].strip()
             if 'ISBN' in detail_text:
-                isbn = detail_text.split('ISBN')[1].strip()
+                isbn = detail_text.split('ISBN')[1].replace('(', '').strip()
             if 'Language' in detail_text:
                 language = detail_text.split('Language')[1].strip()
     # Get next page
