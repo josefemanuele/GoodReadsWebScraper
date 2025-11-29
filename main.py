@@ -172,7 +172,7 @@ if __name__ == "__main__":
     parser.add_argument('--book', type=str, help='If set, start from book URL')
     parser.add_argument('--index', type=str, help='If set, start from index URL')
     parser.add_argument('--crawl', help='If set, crawl related books', default=False, action='store_true')
-    parser.add_argument('--crawl-limit', type=int, help='Limit for crawling related books', default=20)
+    parser.add_argument('--crawl-limit', type=int, help='Limit for crawling related books', default=10)
     parser.add_argument('--show', help='If set, shows interactive browser', default=False, action='store_true')
     args = parser.parse_args()
     book = args.book
