@@ -27,7 +27,7 @@ def crawl(soup, scraped):
 def scrape(page, url, scraped, crawling):
     ''' Extract book data from page'''
     soup = BeautifulSoup(page, 'html.parser')
-    with open('book_debug.html', 'w', encoding='utf-8') as f:
+    with open('debug/book.html', 'w', encoding='utf-8') as f:
         f.write(soup.prettify())
     title_section = soup.select_one('.BookPageTitleSection')
     title = title_section.select_one('.Text__title1').get_text(strip=True)
@@ -95,7 +95,6 @@ def scrape(page, url, scraped, crawling):
     csv_line = f'"{title}"\t"{series}"\t"{contributors_str}"\t"{average_rating}"\t"{number_of_ratings}"\t"{number_of_reviews}"\t"{description}"\t"{number_of_pages}"\t"{publishing_date}"\t"{genres_str}"\t"{setting}"\t"{characters}"\t"{isbn}"\t"{language}"\t"{url}"\n'
     return csv_line, next
 
-
 def get_page(driver, url):
     ''' Open page and act to load full content '''
     driver.get(url)
@@ -113,7 +112,6 @@ def get_page(driver, url):
         details_button_element.click()
     except:
         pass
-    # sleep(1)  # Wait for content to load
     # Scroll to related books section to load content
     related_element = driver.find_element(By.CLASS_NAME, 'BookPage__relatedTopContent')
     ActionChains(driver).scroll_to_element(related_element).perform()
@@ -152,7 +150,7 @@ def get_books_from_index(driver, index_url, scraped):
     page = driver.page_source
     soup = BeautifulSoup(page, 'html.parser')
     # For debugging, save the page locally
-    with open('index_debug.html', 'w', encoding='utf-8') as f:
+    with open('debug/index.html', 'w', encoding='utf-8') as f:
         f.write(soup.prettify())
     # Get book URLs
     book_list = soup.select_one('.tableList').select('.bookTitle')
@@ -174,22 +172,22 @@ if __name__ == "__main__":
     parser.add_argument('--book', type=str, help='If set, start from book URL')
     parser.add_argument('--index', type=str, help='If set, start from index URL')
     parser.add_argument('--crawl', help='If set, crawl related books', default=False, action='store_true')
-    parser.add_argument('--crawl-limit', type=int, help='Limit for crawling related books', default=50)
-    #parser.add_argument('--show', help='If set, shows interactive browser', default=False, action='store_true')
+    parser.add_argument('--crawl-limit', type=int, help='Limit for crawling related books', default=20)
+    parser.add_argument('--show', help='If set, shows interactive browser', default=False, action='store_true')
     args = parser.parse_args()
     book = args.book
     index = args.index
     crawling = args.crawl
     crawl_limit = args.crawl_limit
-    #show = args.show
+    show = args.show
     if book is None and index is None:
         print('Please provide either a starting book URL or an index URL.')
         exit(1)
     # Set up Selenium WebDriver
     chrome_options = Options()
-    # if not show:
-    #     chrome_options.add_argument("--headless=new")
-    # chrome_options.add_argument("user-agent=Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36")
+    if not show:
+        chrome_options.add_argument("--headless=new")
+        chrome_options.add_argument("user-agent=Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36")
     driver = webdriver.Chrome(options=chrome_options)
     # Build set of already scraped book ids
     scraped = set()
@@ -206,8 +204,9 @@ if __name__ == "__main__":
     except FileNotFoundError:
         with open('data.csv', 'w', encoding='utf-8') as f:
             f.write('"Title"\t"Series"\t"Contributors"\t"Average Rating"\t"Number of Ratings"\t"Number of Reviews"\t"Description"\t"Number of Pages"\t"Publishing Date"\t"Genres"\t"Setting"\t"Characters"\t"ISBN"\t"Language"\t"URL"\n')
-    # Ensure pages directory exists
+    # Ensure output directories exists
     Path("pages").mkdir(exist_ok=True)
+    Path("debug").mkdir(exist_ok=True)
     # Scrape from book URL
     count = 0
     i = 0
@@ -219,17 +218,17 @@ if __name__ == "__main__":
         i += 1
     # Scrape from index URL
     while index is not None:
-            print(f'Scraping index page: {index}')
+            print(f'Index: {index}')
             books, next_index = get_books_from_index(driver, index, scraped)
             for book in books:
                 i = 0
                 while book is not None and i < crawl_limit:
-                    print(f'{count+1}: Scraping {book}')
+                    print(f'Book {count+1}: {book}')
                     next = extract_data(driver, book, scraped, crawling)
                     book = next
                     count += 1
                     i += 1
             index = next_index
     print(f'Scraping complete. Found {count} new books.')
-    print('Consider starting again from a different URL to explore more.')
+    print('For more book consider starting again from a different URL.')
     driver.quit()
