@@ -199,7 +199,7 @@ if __name__ == "__main__":
         pass
     # Create csv file with headers if it doesn't exist
     try:
-        with open('data.txt', 'r', encoding='utf-8') as f:
+        with open('data.csv', 'r', encoding='utf-8') as f:
             pass
     except FileNotFoundError:
         with open('data.csv', 'w', encoding='utf-8') as f:
