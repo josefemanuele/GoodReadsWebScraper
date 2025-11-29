@@ -11,14 +11,21 @@ from time import sleep
 
 starting_point = 'https://www.goodreads.com/book/show/157993.The_Little_Prince'
 harry_potter = 'https://www.goodreads.com/book/show/42844155-harry-potter-and-the-sorcerer-s-stone'
+goodreads_list = 'https://www.goodreads.com/list/show/1.Best_Books_Ever'
 count = 0
 
-def scrape(page, url, scraped):
+def crawl(soup, scraped):
+    ''' Find next related book that hasn't been scraped yet '''
+    related_soup = soup.select_one('.BookPage__relatedTopContent').select('.BookCard__clickCardTarget')
+    related_books = [next.get('href') for next in related_soup]
+    for next in related_books:
+        next = clean_url(next)
+        if id(next) not in scraped:
+            return next
+    return None
+
+def scrape(page, url, scraped, crawling):
     ''' Extract book data from page'''
-    global count
-    # Some simple logging
-    print(f'{count} {url}')
-    count += 1
     soup = BeautifulSoup(page, 'html.parser')
     # For debugging, save the page locally
     with open('debug.html', 'w', encoding='utf-8') as f:
@@ -56,20 +63,42 @@ def scrape(page, url, scraped):
         genres_str = '; '.join(genres)
     else:
         genres_str = 'Unknown'
-    
-    related_soup = soup.select_one('.BookPage__relatedTopContent').select('.BookCard__clickCardTarget')
-    related_books = [next.get('href') for next in related_soup]
+    work_details_soup = soup.select_one('.WorkDetails')
+    setting = 'Unknown'
+    characters = 'Unknown'
+    if work_details_soup is not None:
+        work_details_list = work_details_soup.select('.DescListItem')
+        for detail in work_details_list:
+            detail_text = detail.get_text(strip=True)
+            if 'Setting' in detail_text:
+                setting = detail_text.split('Setting')[1].strip()
+            if 'Characters' in detail_text:
+                characters = detail_text.split('Characters')[1].strip()
+    # Get next page
     next = None
-    for next in related_books:
-        next = clean_url(next)
-        if id(next) not in scraped:
-            break
-    csv_line = f'"{title}","{series}","{contributors_str}","{average_rating}","{number_of_ratings}","{number_of_reviews}","{description}","{number_of_pages}","{publishing_date}","{genres_str}","{url}"\n'
+    if crawling:
+        next = crawl(soup, scraped)
+    csv_line = f'"{title}"\t"{series}"\t"{contributors_str}"\t"{average_rating}"\t"{number_of_ratings}"\t"{number_of_reviews}"\t"{description}"\t"{number_of_pages}"\t"{publishing_date}"\t"{genres_str}"\t"{setting}"\t"{characters}"\t"{url}"\n'
     return csv_line, next
 
-def scroll(driver, url):
+
+def get_page(driver, url):
     ''' Open page and scroll to related books section to load content '''
     driver.get(url)
+    sleep(1)  # Wait for overlay to appear
+    try:
+        overlay_element = driver.find_element(By.CLASS_NAME, 'Overlay')
+        if overlay_element is not None:
+            overlay_button_element = overlay_element.find_element(By.CLASS_NAME, 'Button')
+            overlay_button_element.click()
+    except:
+        pass
+    # Click "Show more" button to expand book details
+    details_button_element = driver.find_element(By.CLASS_NAME, 'BookDetails').find_element(By.CLASS_NAME, 'Button')
+    with open('debug_before_click.html', 'w', encoding='utf-8') as f:
+        f.write(driver.page_source)
+    details_button_element.click()
+    # Scroll to related books section to load content
     related_element = driver.find_element(By.CLASS_NAME, 'BookPage__relatedTopContent')
     ActionChains(driver).scroll_to_element(related_element).perform()
     sleep(1)  # Wait for content to load
@@ -86,9 +115,16 @@ def id(url):
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
-    parser.add_argument('--url', type=str, help='Starting URL for scraping', default=starting_point)
+    parser.add_argument('--book', type=str, help='If set, start from book URL')
+    parser.add_argument('--index', type=str, help='If set, start from index URL')
+    parser.add_argument('--crawl', help='If set, crawl related books', default=False, action='store_true')
     args = parser.parse_args()
-    url = args.url
+    book = args.book
+    index = args.index
+    crawling = args.crawl
+    if book is None and index is None:
+        print('Please provide either a starting book URL or an index URL.')
+        exit(1)
     driver = webdriver.Chrome()
     # Build set of already scraped book ids
     scraped = set()
@@ -98,11 +134,20 @@ if __name__ == "__main__":
                 scraped.add(line.strip())
     except FileNotFoundError:
         pass
+    # Create csv file with headers if it doesn't exist
+    try:
+        with open('data.txt', 'r', encoding='utf-8') as f:
+            pass
+    except FileNotFoundError:
+        with open('data.csv', 'w', encoding='utf-8') as f:
+            f.write('"Title"\t"Series"\t"Contributors"\t"Average Rating"\t"Number of Ratings"\t"Number of Reviews"\t"Description"\t"Number of Pages"\t"Publishing Date"\t"Genres"\t"Setting"\t"Characters"\t"URL"\n')
+    url = book
+    # count = 0
     # Start scraping loop
     while url is not None:
         url = clean_url(url)
-        page = scroll(driver, url)
-        data, next = scrape(page, url, scraped)
+        page = get_page(driver, url)
+        data, next = scrape(page, url, scraped, crawling)
         # Log data to csv
         with open('data.csv', 'a', encoding='utf-8') as f:
             f.write(data)
@@ -111,6 +156,7 @@ if __name__ == "__main__":
             f.write(id(url) + '\n')
         scraped.add(id(url))
         url = next
+        count += 1
     print(f'Next: {url}')
     print(f'Scraped {count} new books.')
     print('Scraping complete. No more new books found.')
