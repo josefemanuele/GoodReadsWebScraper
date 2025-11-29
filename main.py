@@ -27,6 +27,7 @@ def crawl(soup, scraped):
 def scrape(page, url, scraped, crawling):
     ''' Extract book data from page'''
     soup = BeautifulSoup(page, 'html.parser')
+    # Save page for debugging
     with open('debug/book.html', 'w', encoding='utf-8') as f:
         f.write(soup.prettify())
     title_section = soup.select_one('.BookPageTitleSection')
@@ -98,8 +99,17 @@ def scrape(page, url, scraped, crawling):
 def get_page(driver, url):
     ''' Open page and act to load full content '''
     driver.get(url)
-    sleep(1)  # Wait for overlay to appear
-    # Try removing overlay
+    # page = driver.page_source
+    # soup = BeautifulSoup(page, 'html.parser')
+    # with open('debug/book.html', 'w', encoding='utf-8') as f:
+    #     f.write(soup.prettify())
+    # Wait for overlay to appear
+    sleep(1)
+    # Check if page is not found
+    title = driver.find_element(By.TAG_NAME, 'title').get_attribute('text')  
+    if 'Page not found' in title:
+        return None
+    # Check overlay
     try:
         overlay_button = driver.find_element(By.CLASS_NAME, 'Overlay').find_element(By.CLASS_NAME, 'Button')
         overlay_button.click()
@@ -108,14 +118,12 @@ def get_page(driver, url):
     # Scroll to book details section to load content
     details_button_element = driver.find_element(By.CLASS_NAME, 'BookDetails').find_element(By.CLASS_NAME, 'Button')
     ActionChains(driver).scroll_to_element(details_button_element).perform()
-    try:
-        details_button_element.click()
-    except:
-        pass
+    details_button_element.click()
     # Scroll to related books section to load content
     related_element = driver.find_element(By.CLASS_NAME, 'BookPage__relatedTopContent')
     ActionChains(driver).scroll_to_element(related_element).perform()
-    sleep(1)  # Wait for content to load
+    # Wait for content to load
+    sleep(1)
     page = driver.page_source
     return page
 
@@ -131,6 +139,9 @@ def extract_data(driver, url, scraped, crawling):
     ''' Extract data from a single book URL '''
     url = clean_url(url)
     page = get_page(driver, url)
+    if page is None:
+        print(f'Page not found: {url}')
+        return None
     data, next = scrape(page, url, scraped, crawling)
     # Log data to csv
     with open('data.csv', 'a', encoding='utf-8') as f:
