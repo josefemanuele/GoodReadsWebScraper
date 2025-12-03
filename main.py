@@ -7,6 +7,7 @@ from selenium import webdriver
 from selenium.webdriver import ActionChains
 from selenium.webdriver.common.by import By
 from selenium.webdriver.chrome.options import Options
+import re
 from pathlib import Path
 from time import sleep
 
@@ -27,6 +28,11 @@ def crawl(soup, scraped):
 def scrape(page, url, scraped, crawling):
     ''' Extract book data from page'''
     soup = BeautifulSoup(page, 'html.parser')
+    re_rating_statistics= re.compile(r'([0-9,]*)[ratings\s]*([0-9,]*)[reviews\s]*')
+    re_date = re.compile(r'[A-Z][a-z]+ [0-9]{1,2}, [0-9]{4}')
+    re_pages = re.compile('([0-9]+) pages?')
+    re_isbn = re.compile('ISBN(.*)')
+    re_language = re.compile('Language(.*)')
     # Save page for debugging
     with open('debug/book.html', 'w', encoding='utf-8') as f:
         f.write(soup.prettify())
@@ -42,21 +48,24 @@ def scrape(page, url, scraped, crawling):
     contributors_str = '; '.join(contributors_list) 
     rating_section = soup.select_one('.RatingStatistics')
     average_rating = rating_section.select_one('.RatingStatistics__rating').get_text(strip=True)
-    rating_statistics_meta = rating_section.select_one('.RatingStatistics__meta').get_text(strip=True)\
-        .replace('ratings', ' ').replace('reviews', '').replace('\xa0', '').split(' ')
-    number_of_ratings = rating_statistics_meta[0]
-    number_of_reviews = rating_statistics_meta[1]
-    description = soup.select_one('.BookPageMetadataSection__description').get_text(strip=True)
+    rating_statistics_meta = rating_section.select_one('.RatingStatistics__meta').get_text(strip=True)
+    rating_statistics_groups = re_rating_statistics.search(rating_statistics_meta)
+    number_of_ratings = rating_statistics_groups.group(1)
+    number_of_reviews = rating_statistics_groups.group(2)
+    description = soup.select_one('.DetailsLayoutRightParagraph').get_text(strip=True)
     featured_details = soup.select_one('.FeaturedDetails').select('p')
     number_of_pages = 'Unknown'
     publishing_date = 'Unknown'
-    if len(featured_details) >= 2:
-        pages_details = featured_details[0].get_text(strip=True)
-        if 'pages' in pages_details:
-            number_of_pages = pages_details.split('pages')[0].strip()
-        publishing_details = featured_details[1].get_text(strip=True)
-        if 'ublished' in publishing_details:
-            publishing_date = publishing_details.split('ublished')[1].strip()
+    for featured_detail in featured_details:
+        featured_detail_text = featured_detail.get_text(strip=True)
+        # Search number of pages
+        match = re_pages.search(featured_detail_text)
+        if match is not None:
+            number_of_pages = match.group(1)
+        # Search date
+        match = re_date.search(featured_detail_text)
+        if match is not None:
+            publishing_date = match.group(0)
     genres_section = soup.select_one('.BookPageMetadataSection__genres')
     if genres_section is not None:
         genres = [genre.get_text(strip=True) for genre in genres_section.select('.BookPageMetadataSection__genreButton')]
@@ -81,14 +90,23 @@ def scrape(page, url, scraped, crawling):
         book_details_list = book_details_soup.select('.DescListItem')
         for detail in book_details_list:
             detail_text = detail.get_text(strip=True)
-            if 'Format' in detail_text:
-                number_of_pages = detail_text.split('Format')[1].split(' ')[0].strip()
-            if 'Published' in detail_text:
-                publishing_date = detail_text.split('Published')[1].split('by')[0].strip()
-            if 'ISBN' in detail_text:
-                isbn = detail_text.split('ISBN')[1].replace('(', '').strip()
-            if 'Language' in detail_text:
-                language = detail_text.split('Language')[1].strip()
+            # Search number of pages
+            match = re_pages.search(detail_text)
+            if match is not None:
+                number_of_pages = match.group(1)
+            # Search date
+            match = re_date.search(detail_text)
+            if match is not None:
+                publishing_date = match.group(0)
+            match = re_isbn.search(detail_text)
+            if match is not None:
+                isbn = match.group(1)
+            match = re_language.search(detail_text)
+            if match is not None:
+                language = match.group(1)
+                # Skip non-English books
+                if language != 'English':
+                    return None, None
     # Get next page
     next = None
     if crawling:
@@ -135,27 +153,46 @@ def id(url):
     ''' Get unique id from url '''
     return url.split('/')[-1]
 
-def extract_data(driver, url, scraped, crawling):
-    ''' Extract data from a single book URL '''
-    url = clean_url(url)
-    page = get_page(driver, url)
-    if page is None:
-        print(f'Page not found: {url}')
-        return None
-    data, next = scrape(page, url, scraped, crawling)
-    # Log data to csv
+def write_to_output_files(data, page, url):
+    ''' Write data to output files '''
+    # Save data to csv
     with open('data.csv', 'a', encoding='utf-8') as f:
         f.write(data)
-    # Log book id to scraped file
+    # Save book id to scraped file
     with open('scraped.txt', 'a', encoding='utf-8') as f:
         f.write(id(url) + '\n')
     # Save page
     with open(f'pages/{id(url)}.html', 'w', encoding='utf-8') as f:
         f.write(page)
-    scraped.add(id(url))
+    return
+
+def extract_data(driver, url, scraped, crawling = False, testing = False, force = False):
+    ''' Extract data from a single book URL '''
+    url = clean_url(url)
+    if not force:
+        # Check if already scraped
+        if id(url) in scraped:
+            print(f'Page already scraped: {url}')
+            return None
+    page = get_page(driver, url)
+    if page is None:
+        print(f'Page not found: {url}')
+        return None
+    data, next = scrape(page, url, scraped, crawling)
+    if data is None:
+        # Skip non-English books
+        return None
+    # If testing, print data
+    if testing:
+        print(data)
+    # Log data to csv
+    else:
+        write_to_output_files(data, page, url)
+        # Add book id to scraped set
+        scraped.add(id(url))
     return next
 
-def get_books_from_index(driver, index_url, scraped):
+def get_books_from_index(driver, index_url):
     ''' Get list of book URLs from index page '''
     driver.get(index_url)
     page = driver.page_source
@@ -169,8 +206,7 @@ def get_books_from_index(driver, index_url, scraped):
     for book_element in book_list:
         book_url = book_element.get('href')
         book_url = clean_url(book_url)
-        if id(book_url) not in scraped:
-            books.append(goodreads_url + book_url)
+        books.append(goodreads_url + book_url)
     # Get next index page URL
     next_index = None
     next_button = soup.select_one('.next_page')
@@ -185,12 +221,16 @@ if __name__ == "__main__":
     parser.add_argument('--crawl', help='If set, crawl related books', default=False, action='store_true')
     parser.add_argument('--crawl-limit', type=int, help='Limit for crawling related books', default=10)
     parser.add_argument('--show', help='If set, shows interactive browser', default=False, action='store_true')
+    parser.add_argument('--test', help='If set, does not write on output datasets', default=False, action='store_true')
+    parser.add_argument('--force', help='If set, force scraping even if already scraped', default=False, action='store_true')
     args = parser.parse_args()
     book = args.book
     index = args.index
     crawling = args.crawl
     crawl_limit = args.crawl_limit
     show = args.show
+    testing = args.test
+    force = args.force
     if book is None and index is None:
         print('Please provide either a starting book URL or an index URL.')
         exit(1)
@@ -223,23 +263,23 @@ if __name__ == "__main__":
     i = 0
     while book is not None and i < crawl_limit:
         print(f'{count+1}: Scraping {book}')
-        next = extract_data(driver, book, scraped, crawling)
+        next = extract_data(driver, book, scraped, crawling, testing, force)
         book = next
         count += 1
         i += 1
     # Scrape from index URL
     while index is not None:
             print(f'Index: {index}')
-            books, next_index = get_books_from_index(driver, index, scraped)
+            books, next_index = get_books_from_index(driver, index)
             for book in books:
                 i = 0
                 while book is not None and i < crawl_limit:
                     print(f'Book {count+1}: {book}')
-                    next = extract_data(driver, book, scraped, crawling)
+                    next = extract_data(driver, book, scraped, crawling, testing, force)
                     book = next
                     count += 1
                     i += 1
             index = next_index
-    print(f'Scraping complete. Found {count} new books.')
-    print('For more book consider starting again from a different URL.')
+    print(f'Scraping complete. Scraped {count} books.')
+    print('For more books consider starting again from a different URL.')
     driver.quit()
