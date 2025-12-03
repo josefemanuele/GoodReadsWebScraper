@@ -80,9 +80,9 @@ def scrape(page, url, scraped, crawling):
         for detail in work_details_list:
             detail_text = detail.get_text(strip=True)
             if 'Setting' in detail_text:
-                setting = detail_text.split('Setting')[1].strip()
+                setting = detail.select_one('.TruncatedContent__text').get_text(strip=True)
             if 'Characters' in detail_text:
-                characters = detail_text.split('Characters')[1].strip()
+                characters = detail.select_one('.TruncatedContent__text').get_text(strip=True)
     book_details_soup = soup.select_one('.BookDetails')
     isbn = 'Unknown'
     language = 'Unknown'
