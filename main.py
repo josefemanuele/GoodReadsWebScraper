@@ -233,13 +233,13 @@ def setup_driver(show):
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
-    parser.add_argument('--book', type=str, help='If set, start from book URL')
-    parser.add_argument('--index', type=str, help='If set, start from index URL')
+    parser.add_argument('--book', type=str, help='If set, start scraping from book URL')
+    parser.add_argument('--index', type=str, help='If set, start scraping from index URL')
     parser.add_argument('--crawl', help='If set, crawl related books', default=False, action='store_true')
     parser.add_argument('--crawl-limit', type=int, help='Limit for crawling related books', default=10)
     parser.add_argument('--show', help='If set, shows interactive browser', default=False, action='store_true')
-    parser.add_argument('--test', help='If set, does not write on output datasets', default=False, action='store_true')
-    parser.add_argument('--force', help='If set, force scraping even if already scraped', default=False, action='store_true')
+    parser.add_argument('--test', help='If set, does not write on output datasets but prints on stdout', default=False, action='store_true')
+    parser.add_argument('--force', help='If set, force scraping even if the page has been already scraped', default=False, action='store_true')
     args = parser.parse_args()
     book = args.book
     index = args.index
@@ -249,8 +249,7 @@ if __name__ == "__main__":
     testing = args.test
     force = args.force
     if book is None and index is None:
-        print('Please provide either a starting book URL or an index URL.')
-        exit(1)
+        book = book_url
     # Set up Selenium WebDriver
     driver = setup_driver(show)
     # Remove overlay
