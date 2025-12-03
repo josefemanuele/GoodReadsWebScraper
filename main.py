@@ -14,6 +14,7 @@ from time import sleep
 book_url = 'https://www.goodreads.com/book/show/157993.The_Little_Prince'
 index_url = 'https://www.goodreads.com/list/show/1.Best_Books_Ever'
 goodreads_url = 'https://www.goodreads.com'
+count = 0
 
 def crawl(soup, scraped):
     ''' Find next related book that hasn't been scraped yet '''
@@ -121,18 +122,10 @@ def get_page(driver, url):
     # soup = BeautifulSoup(page, 'html.parser')
     # with open('debug/book.html', 'w', encoding='utf-8') as f:
     #     f.write(soup.prettify())
-    # Wait for overlay to appear
-    sleep(1)
     # Check if page is not found
     title = driver.find_element(By.TAG_NAME, 'title').get_attribute('text')  
     if 'Page not found' in title:
         return None
-    # Check overlay
-    try:
-        overlay_button = driver.find_element(By.CLASS_NAME, 'Overlay').find_element(By.CLASS_NAME, 'Button')
-        overlay_button.click()
-    except:
-        pass
     # Scroll to book details section to load content
     details_button_element = driver.find_element(By.CLASS_NAME, 'BookDetails').find_element(By.CLASS_NAME, 'Button')
     ActionChains(driver).scroll_to_element(details_button_element).perform()
@@ -181,6 +174,7 @@ def extract_data(driver, url, scraped, crawling = False, testing = False, force 
     data, next = scrape(page, url, scraped, crawling)
     if data is None:
         # Skip non-English books
+        print(f'Skipping non-English book: {url}')
         return None
     # If testing, print data
     if testing:
@@ -190,6 +184,8 @@ def extract_data(driver, url, scraped, crawling = False, testing = False, force 
         write_to_output_files(data, page, url)
         # Add book id to scraped set
         scraped.add(id(url))
+    global count
+    count += 1
     return next
 
 def get_books_from_index(driver, index_url):
@@ -214,6 +210,27 @@ def get_books_from_index(driver, index_url):
         next_index = goodreads_url + next_button.get('href')
     return books, next_index
 
+def setup_driver(show):
+    ''' Set up Selenium WebDriver '''
+    chrome_options = Options()
+    if not show:
+        chrome_options.add_argument("--headless=new")
+        chrome_options.add_argument("user-agent=Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36")
+    chrome_options.add_argument('--disable-dev-shm-usage')
+    driver = webdriver.Chrome(options=chrome_options)
+    # Make dummy page calls to remove overlay
+    driver.get(book_url)
+    driver.get(book_url)
+    # Wait for overlay to appear
+    sleep(1)
+    # Check overlay
+    try:
+        overlay_button = driver.find_element(By.CLASS_NAME, 'Overlay').find_element(By.CLASS_NAME, 'Button')
+        overlay_button.click()
+    except:
+        pass
+    return driver
+
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument('--book', type=str, help='If set, start from book URL')
@@ -235,11 +252,8 @@ if __name__ == "__main__":
         print('Please provide either a starting book URL or an index URL.')
         exit(1)
     # Set up Selenium WebDriver
-    chrome_options = Options()
-    if not show:
-        chrome_options.add_argument("--headless=new")
-        chrome_options.add_argument("user-agent=Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36")
-    driver = webdriver.Chrome(options=chrome_options)
+    driver = setup_driver(show)
+    # Remove overlay
     # Build set of already scraped book ids
     scraped = set()
     try:
@@ -259,13 +273,11 @@ if __name__ == "__main__":
     Path("pages").mkdir(exist_ok=True)
     Path("debug").mkdir(exist_ok=True)
     # Scrape from book URL
-    count = 0
     i = 0
     while book is not None and i < crawl_limit:
-        print(f'{count+1}: Scraping {book}')
+        print(f'{count}: Scraping {book}')
         next = extract_data(driver, book, scraped, crawling, testing, force)
         book = next
-        count += 1
         i += 1
     # Scrape from index URL
     while index is not None:
@@ -274,10 +286,9 @@ if __name__ == "__main__":
             for book in books:
                 i = 0
                 while book is not None and i < crawl_limit:
-                    print(f'Book {count+1}: {book}')
+                    print(f'Book {count}: {book}')
                     next = extract_data(driver, book, scraped, crawling, testing, force)
                     book = next
-                    count += 1
                     i += 1
             index = next_index
     print(f'Scraping complete. Scraped {count} books.')
