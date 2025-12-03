@@ -22,6 +22,5 @@ The csv separator is '\t'.
 
 In scraped.txt you can find all of the book urls that have been analysed.
 
-
-This project was made as an assistance task for the course of "Algorithmic Methods for Data Mining", 
+This project was made as an assistance task for the course of "Algorithmic Methods for Data Mining" 
 held at "La Sapienza" University of Rome.
