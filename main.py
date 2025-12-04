@@ -7,6 +7,9 @@ from selenium import webdriver
 from selenium.webdriver import ActionChains
 from selenium.webdriver.common.by import By
 from selenium.webdriver.chrome.options import Options
+from selenium.common.exceptions import InvalidSessionIdException
+from selenium.common.exceptions import TimeoutException
+from urllib3.exceptions import ReadTimeoutError
 import re
 from pathlib import Path
 from time import sleep
@@ -275,21 +278,57 @@ if __name__ == "__main__":
     i = 0
     while book is not None and i < crawl_limit:
         print(f'{count}: Scraping {book}')
-        next = extract_data(driver, book, scraped, crawling, testing, force)
-        book = next
-        i += 1
+        try:
+            next = extract_data(driver, book, scraped, crawling, testing, force)
+            book = next
+            i += 1
+        except InvalidSessionIdException as e:
+            print(f"Caught session exception scraping {book}: {e}")
+            print(f'Reinitializing driver.')
+            driver.close()
+            driver = setup_driver(show)
+        except TimeoutException as e:
+            print(f"Caught timeout exception scraping {book}: {e}")
+            print(f'Skipping book {book}.')
+            book = None
+            driver.close()
+            driver = setup_driver(show)
+        except ReadTimeoutError as e:
+            print(f"Caught read exception scraping {book}: {e}")
+            print(f'Skipping book {book}.')
+            book = None
+            driver.close()
+            driver = setup_driver(show)
     # Scrape from index URL
     while index is not None:
-            print(f'Index: {index}')
-            books, next_index = get_books_from_index(driver, index)
-            for book in books:
-                i = 0
-                while book is not None and i < crawl_limit:
-                    print(f'Book {count}: {book}')
+        print(f'Index: {index}')
+        books, next_index = get_books_from_index(driver, index)
+        for book in books:
+            i = 0
+            while book is not None and i < crawl_limit:
+                print(f'{count}: Scraping {book}')
+                try:
                     next = extract_data(driver, book, scraped, crawling, testing, force)
                     book = next
                     i += 1
-            index = next_index
+                except InvalidSessionIdException as e:
+                    print(f"Caught session exception scraping {book}: {e}")
+                    print(f'Reinitializing driver.')
+                    driver.close()
+                    driver = setup_driver(show)
+                except TimeoutException as e:
+                    print(f"Caught timeout exception scraping {book}: {e}")
+                    print(f'Skipping book {book}.')
+                    book = None
+                    driver.close()
+                    driver = setup_driver(show)
+                except ReadTimeoutError as e:
+                    print(f"Caught read exception scraping {book}: {e}")
+                    print(f'Skipping book {book}.')
+                    book = None
+                    driver.close()
+                    driver = setup_driver(show)
+        index = next_index
     print(f'Scraping complete. Scraped {count} books.')
     print('For more books consider starting again from a different URL.')
     driver.quit()
