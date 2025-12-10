@@ -9,7 +9,9 @@ from selenium.webdriver.common.by import By
 from selenium.webdriver.chrome.options import Options
 from selenium.common.exceptions import InvalidSessionIdException
 from selenium.common.exceptions import TimeoutException
+from selenium.common.exceptions import ElementClickInterceptedException
 from urllib3.exceptions import ReadTimeoutError
+from urllib3.exceptions import MaxRetryError
 import re
 from pathlib import Path
 from time import sleep
@@ -299,6 +301,24 @@ if __name__ == "__main__":
             book = None
             driver.close()
             driver = setup_driver(show)
+        except MaxRetryError as e:
+            print(f"Caught max retry exception scraping {book}: {e}")
+            print(f'Skipping book {book}.')
+            book = None
+            driver.close()
+            driver = setup_driver(show)
+        except ElementClickInterceptedException as e:
+            print(f"Caught click intercepted exception scraping {book}: {e}")
+            print(f'Skipping book {book}.')
+            book = None
+            driver.close()
+            driver = setup_driver(show)
+        except Exception as e:
+            print(f"Caught unexpected exception scraping {book}: {e}")
+            print(f'Skipping book {book}.')
+            book = None
+            driver.close()
+            driver = setup_driver(show)
     # Scrape from index URL
     while index is not None:
         print(f'Index: {index}')
@@ -324,6 +344,24 @@ if __name__ == "__main__":
                     driver = setup_driver(show)
                 except ReadTimeoutError as e:
                     print(f"Caught read exception scraping {book}: {e}")
+                    print(f'Skipping book {book}.')
+                    book = None
+                    driver.close()
+                    driver = setup_driver(show)
+                except MaxRetryError as e:
+                    print(f"Caught max retry exception scraping {book}: {e}")
+                    print(f'Skipping book {book}.')
+                    book = None
+                    driver.close()
+                    driver = setup_driver(show)
+                except ElementClickInterceptedException as e:
+                    print(f"Caught click intercepted exception scraping {book}: {e}")
+                    print(f'Skipping book {book}.')
+                    book = None
+                    driver.close()
+                    driver = setup_driver(show)
+                except Exception as e:
+                    print(f"Caught unexpected exception scraping {book}: {e}")
                     print(f'Skipping book {book}.')
                     book = None
                     driver.close()
