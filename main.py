@@ -195,8 +195,21 @@ def extract_data(driver, url, scraped, crawling = False, testing = False, force 
 
 def get_books_from_index(driver, index_url):
     ''' Get list of book URLs from index page '''
-    driver.get(index_url)
-    page = driver.page_source
+    # Set retries as fetch may be buggy
+    for i in range(3):
+        driver.get(index_url)
+        page = driver.page_source
+        if len(page) > 0:
+            break
+        else:
+            with open('debug/index.html', 'w', encoding='utf-8') as f:
+                f.write(page)
+            print(f'Failed to fetch index page: {index_url}')
+            print(f'Retrying ({i+1}/3)...')
+            page = None
+    if page is None:
+        print(f'Failed to fetch index page after retries: {index_url}')
+        return [], None
     soup = BeautifulSoup(page, 'html.parser')
     # For debugging, save the page locally
     with open('debug/index.html', 'w', encoding='utf-8') as f:
